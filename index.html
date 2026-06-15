@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Wc2026 Squad Tracker",
+  "schemaVersion": 1,
+  "description": "2026 World Cup Fantasy Squad Tracker — tap any player to see their 8 teams with W/D/L results and points per team. Sorted by standings."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WC2026 Fantasy — Squad Tracker</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #F0F4F0; font-family: Arial, sans-serif; color: #1a1a1a; padding-bottom: 32px; }
+
+.hdr { background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%); padding: 22px 20px 18px; text-align: center; border-bottom: 4px solid #FFD700; }
+.hdr-eyebrow { font-size: 10px; letter-spacing: 4px; color: #A5D6A7; margin-bottom: 4px; text-transform: uppercase; }
+.hdr-title { font-size: 24px; font-weight: 900; color: #FFD700; letter-spacing: 3px; }
+.hdr-sub { font-size: 10px; color: #A5D6A7; margin-top: 6px; letter-spacing: 1px; }
+.hdr-updated { font-size: 10px; color: #81C784; margin-top: 5px; font-style: italic; }
+
+.legend { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; background: #2E7D32; }
+.leg-item { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 3px; }
+
+.container { max-width: 680px; margin: 0 auto; padding: 14px 12px 0; }
+
+.player-card { background: #fff; border-radius: 12px; border: 1px solid #E0E0E0; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.player-card.top1 { border: 2px solid #FFD700; box-shadow: 0 2px 12px rgba(255,215,0,0.2); }
+.player-card.top2 { border: 2px solid #90A4AE; }
+.player-card.top3 { border: 2px solid #A1887F; }
+
+.p-header { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.p-header:hover { background: #F9FBF9; }
+
+.p-rank { font-size: 20px; font-weight: 900; width: 30px; text-align: center; flex-shrink: 0; }
+.p-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.p-info { flex: 1; min-width: 0; }
+.p-name { font-size: 17px; font-weight: 800; color: #1B2A1B; line-height: 1.1; }
+.p-meta { font-size: 10px; color: #78909C; margin-top: 2px; }
+.p-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.p-pts-wrap { text-align: right; }
+.p-pts-num { font-size: 28px; font-weight: 900; line-height: 1; }
+.p-pts-lbl { font-size: 9px; color: #9E9E9E; }
+.p-chevron { font-size: 11px; color: #BDBDBD; transition: transform 0.2s; width: 16px; text-align: center; flex-shrink: 0; }
+.p-chevron.open { transform: rotate(180deg); }
+
+.p-body { display: none; border-top: 1px solid #F0F0F0; padding: 0 12px 12px; }
+.p-body.open { display: block; }
+
+table.squad { width: 100%; border-collapse: collapse; margin-top: 10px; }
+table.squad th { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: #90A4AE; padding: 5px 6px; text-align: left; border-bottom: 1px solid #EEEEEE; text-transform: uppercase; }
+table.squad th.c { text-align: center; }
+table.squad td { padding: 6px 6px; font-size: 12px; border-bottom: 1px solid #FAFAFA; vertical-align: middle; }
+table.squad tr:last-child td { border-bottom: none; }
+table.squad tr.total-row td { border-top: 2px solid #EEEEEE; font-weight: 800; background: #FAFAFA; padding-top: 9px; padding-bottom: 9px; }
+
+.tier-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 3px; min-width: 30px; }
+.t-name { font-size: 12px; font-weight: 500; color: #424242; }
+.t-name.active { font-weight: 700; color: #1B2A1B; }
+
+.res-wrap { display: flex; gap: 3px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.rb { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 3px; font-size: 9px; font-weight: 800; }
+.rb.w { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
+.rb.d { background: #F5F5F5; color: #757575; border: 1px solid #E0E0E0; }
+.rb.l { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+
+.pts-c { text-align: center; font-weight: 700; }
+.pts-pos { color: #2E7D32; }
+.pts-zero { color: #BDBDBD; }
+.pts-total-val { color: #1B5E20; font-size: 15px; }
+
+.no-played { color: #BDBDBD; font-size: 10px; font-style: italic; }
+.total-label { color: #546E7A; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.total-pts { text-align: center; }
+.record-chip { font-size: 10px; color: #78909C; background: #F5F5F5; padding: 1px 6px; border-radius: 10px; display: inline-block; }
+
+.footer-note { text-align: center; font-size: 10px; color: #BDBDBD; padding: 16px 12px 0; max-width: 680px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-eyebrow">2026 FIFA World Cup Fantasy</div>
+  <div class="hdr-title">SQUAD TRACKER</div>
+  <div class="hdr-sub">12 PLAYERS · 2 ROOMS · 8 TEAMS EACH · TAP A PLAYER TO SEE THEIR SQUAD</div>
+  <div class="hdr-updated" id="updated">Loading scores...</div>
+</div>
+
+<div class="legend">
+  <span class="leg-item" style="background:#F57F17;color:#fff">Elite #1–8</span>
+  <span class="leg-item" style="background:#27500A;color:#C0DD97">Top #9–16</span>
+  <span class="leg-item" style="background:#0C447C;color:#B5D4F4">Good #17–24</span>
+  <span class="leg-item" style="background:#633806;color:#FAC775">Mid #25–32</span>
+  <span class="leg-item" style="background:#791F1F;color:#F7C1C1">Risky #33–40</span>
+  <span class="leg-item" style="background:#546E7A;color:#CFD8DC">Wild #41–48</span>
+</div>
+
+<div class="container" id="board"></div>
+
+<div class="footer-note">
+  Win = 2 pts &nbsp;·&nbsp; Draw = 1 pt each &nbsp;·&nbsp; OT loss = 1 pt &nbsp;·&nbsp; Regular loss = 0 pts
+</div>
+
+<script>
+// ===SCORES_DATA_START===
+const GAME_RESULTS = [
+  {
+    "team1": "Mexico",
+    "score1": 2,
+    "team2": "South Africa",
+    "score2": 0,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "South Korea",
+    "score1": 2,
+    "team2": "Czechia",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Canada",
+    "score1": 1,
+    "team2": "Bosnia & Herz.",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "United States",
+    "score1": 4,
+    "team2": "Paraguay",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Qatar",
+    "score1": 1,
+    "team2": "Switzerland",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Brazil",
+    "score1": 1,
+    "team2": "Morocco",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Scotland",
+    "score1": 1,
+    "team2": "Haiti",
+    "score2": 0,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Australia",
+    "score1": 2,
+    "team2": "Türkiye",
+    "score2": 0,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Germany",
+    "score1": 7,
+    "team2": "Curaçao",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Netherlands",
+    "score1": 2,
+    "team2": "Japan",
+    "score2": 2,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Ivory Coast",
+    "score1": 1,
+    "team2": "Ecuador",
+    "score2": 0,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Sweden",
+    "score1": 5,
+    "team2": "Tunisia",
+    "score2": 1,
+    "stage": "group",
+    "ot": false
+  },
+  {
+    "team1": "Spain",
+    "score1": 0,
+    "team2": "Cape Verde",
+    "score2": 0,
+    "stage": "group",
+    "ot": false
+  }
+];
+const LAST_UPDATED = "June 15, 2026 · 2:00 PM ET";
+// ===SCORES_DATA_END===
+
+const PLAYER_TEAMS = {
+  Brock:   ['England','Morocco','Japan','Australia','Qatar','Czechia','Bosnia & Herz.','Iraq'],
+  Atticus: ['Argentina','Germany','Senegal','Uruguay','Iran','Norway','DR Congo','New Zealand'],
+  Hunter:  ['Portugal','Netherlands','Austria','South Korea','Algeria','Sweden','Uzbekistan','Jordan'],
+  Lenny:   ['Spain','Belgium','Colombia','Egypt','Türkiye','South Africa','Ghana','Curaçao'],
+  Austin:  ['Brazil','Croatia','Switzerland','Ecuador','Tunisia','Scotland','Saudi Arabia','Cape Verde'],
+  Brandon: ['France','Mexico','United States','Canada','Ivory Coast','Panama','Paraguay','Haiti'],
+  Carlos:  ['France','Morocco','Croatia','Iran','Ecuador','Qatar','Panama','Cape Verde'],
+  Bogdan:  ['Spain','Colombia','Canada','Tunisia','Türkiye','Norway','Bosnia & Herz.','New Zealand'],
+  Jess:    ['Brazil','United States','Japan','Australia','South Korea','Saudi Arabia','Iraq','Paraguay'],
+  Stewie:  ['England','Netherlands','Senegal','Mexico','Algeria','Czechia','DR Congo','Ghana'],
+  Edwin:   ['Portugal','Germany','Switzerland','Egypt','Sweden','South Africa','Uzbekistan','Jordan'],
+  McCoy:   ['Argentina','Belgium','Uruguay','Austria','Ivory Coast','Scotland','Curaçao','Haiti']
+};
+
+const ROOMS = {Brock:1,Atticus:1,Hunter:1,Lenny:1,Austin:1,Brandon:1,Carlos:2,Bogdan:2,Jess:2,Stewie:2,Edwin:2,McCoy:2};
+
+const POWER_RANK = {
+  France:1,Spain:2,Argentina:3,England:4,Portugal:5,Brazil:6,Netherlands:7,Morocco:8,Belgium:9,Germany:10,
+  Croatia:11,Colombia:12,Senegal:13,Mexico:14,'United States':15,Uruguay:16,Japan:17,Switzerland:18,Iran:19,Austria:20,
+  Ecuador:21,Australia:22,'South Korea':23,Egypt:24,Canada:25,'Ivory Coast':26,Qatar:27,Algeria:28,Sweden:29,Tunisia:30,
+  Czechia:31,'Türkiye':32,Norway:33,Scotland:34,'DR Congo':35,'Bosnia & Herz.':36,Panama:37,'Saudi Arabia':38,'South Africa':39,Iraq:40,
+  Uzbekistan:41,Paraguay:42,Ghana:43,Jordan:44,'Cape Verde':45,'Curaçao':46,Haiti:47,'New Zealand':48
+};
+
+const AVATAR_COLORS = [
+  '#1B5E20','#0D47A1','#B71C1C','#E65100','#4A148C',
+  '#006064','#37474F','#F57F17','#1A237E','#004D40',
+  '#880E4F','#33691E'
+];
+
+const PLAYERS = Object.keys(PLAYER_TEAMS);
+
+function tierStyle(r) {
+  if (r <= 8)  return {bg:'#F57F17', tc:'#fff'};
+  if (r <= 16) return {bg:'#27500A', tc:'#C0DD97'};
+  if (r <= 24) return {bg:'#0C447C', tc:'#B5D4F4'};
+  if (r <= 32) return {bg:'#633806', tc:'#FAC775'};
+  if (r <= 40) return {bg:'#791F1F', tc:'#F7C1C1'};
+  return {bg:'#546E7A', tc:'#CFD8DC'};
+}
+
+function buildTeamStats() {
+  const stats = {};
+  for (const g of GAME_RESULTS) {
+    const {team1, score1, team2, score2, ot} = g;
+    if (!stats[team1]) stats[team1] = {w:0,d:0,l:0,pts:0,games:[]};
+    if (!stats[team2]) stats[team2] = {w:0,d:0,l:0,pts:0,games:[]};
+    let r1, r2, p1, p2;
+    if (score1 > score2)      { r1='w'; r2=ot?'d':'l'; p1=2; p2=ot?1:0; }
+    else if (score2 > score1) { r2='w'; r1=ot?'d':'l'; p2=2; p1=ot?1:0; }
+    else                      { r1='d'; r2='d'; p1=1; p2=1; }
+    stats[team1].pts += p1; stats[team1][r1]++;
+    stats[team2].pts += p2; stats[team2][r2]++;
+    stats[team1].games.push({opp:team2, res:r1, pts:p1, score:`${score1}–${score2}`});
+    stats[team2].games.push({opp:team1, res:r2, pts:p2, score:`${score2}–${score1}`});
+  }
+  return stats;
+}
+
+function render() {
+  const ts = buildTeamStats();
+
+  const playerPts = {};
+  for (const [p, teams] of Object.entries(PLAYER_TEAMS)) {
+    playerPts[p] = teams.reduce((s,t) => s + (ts[t]?.pts||0), 0);
+  }
+
+  const sorted = [...PLAYERS].sort((a,b) => playerPts[b]-playerPts[a] || a.localeCompare(b));
+
+  document.getElementById('updated').textContent = LAST_UPDATED ? 'Updated: ' + LAST_UPDATED : '';
+
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  const medalColor = ['#D4AF37','#78909C','#A1887F'];
+
+  sorted.forEach((player, idx) => {
+    const rank = idx + 1;
+    const pts = playerPts[player];
+    const teams = PLAYER_TEAMS[player];
+    const topClass = rank <= 3 ? `top${rank}` : '';
+    const avatarBg = AVATAR_COLORS[PLAYERS.indexOf(player) % AVATAR_COLORS.length];
+    const rankColor = medalColor[idx] || '#9E9E9E';
+
+    let totW=0, totD=0, totL=0;
+    teams.forEach(t => { if(ts[t]){totW+=ts[t].w;totD+=ts[t].d;totL+=ts[t].l;} });
+
+    const teamRows = [...teams]
+      .sort((a,b) => (POWER_RANK[a]||99)-(POWER_RANK[b]||99))
+      .map(team => {
+        const s = ts[team];
+        const pr = POWER_RANK[team] || '?';
+        const style = tierStyle(pr);
+        const teamPts = s?.pts || 0;
+        const resBadges = s
+          ? s.games.map(g => `<span class="rb ${g.res}" title="${g.opp} ${g.score}">${g.res.toUpperCase()}</span>`).join('')
+          : `<span class="no-played">not yet</span>`;
+        return `<tr>
+          <td style="width:36px"><span class="tier-badge" style="background:${style.bg};color:${style.tc}">#${pr}</span></td>
+          <td><span class="t-name${s?' active':''}">${team}</span></td>
+          <td style="width:90px"><div class="res-wrap">${resBadges}</div></td>
+          <td style="width:36px" class="pts-c ${teamPts>0?'pts-pos':'pts-zero'}">${teamPts>0?'+'+teamPts:'—'}</td>
+        </tr>`;
+      }).join('');
+
+    const card = document.createElement('div');
+    card.className = `player-card ${topClass}`;
+    card.innerHTML = `
+      <div class="p-header" onclick="toggle('${player}')">
+        <span class="p-rank" style="color:${rankColor}">${rank}</span>
+        <div class="p-avatar" style="background:${avatarBg}">${player.slice(0,2).toUpperCase()}</div>
+        <div class="p-info">
+          <div class="p-name">${player}</div>
+          <div class="p-meta">Room ${ROOMS[player]} &nbsp;·&nbsp; <span class="record-chip">${totW}W &nbsp;${totD}D &nbsp;${totL}L</span></div>
+        </div>
+        <div class="p-right">
+          <div class="p-pts-wrap">
+            <div class="p-pts-num" style="color:${pts>0?'#2E7D32':'#BDBDBD'}">${pts}</div>
+            <div class="p-pts-lbl">pts</div>
+          </div>
+          <span class="p-chevron" id="chev-${player}">▼</span>
+        </div>
+      </div>
+      <div class="p-body" id="body-${player}">
+        <table class="squad">
+          <thead>
+            <tr>
+              <th>PR</th>
+              <th>Team</th>
+              <th class="c">Results</th>
+              <th class="c">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teamRows}
+            <tr class="total-row">
+              <td colspan="2"><span class="total-label">Total</span></td>
+              <td class="c"><span class="record-chip">${totW}W ${totD}D ${totL}L</span></td>
+              <td class="total-pts pts-total-val pts-c">${pts > 0 ? '+' + pts : '0'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+    board.appendChild(card);
+  });
+}
+
+function toggle(player) {
+  const body = document.getElementById('body-' + player);
+  const chev = document.getElementById('chev-' + player);
+  const isOpen = body.classList.contains('open');
+  // Close all others
+  document.querySelectorAll('.p-body.open').forEach(el => el.classList.remove('open'));
+  document.querySelectorAll('.p-chevron.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) {
+    body.classList.add('open');
+    chev.classList.add('open');
+  }
+}
+
+render();
+</script>
+</body>
+</html>
