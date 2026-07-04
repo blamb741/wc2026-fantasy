@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WC2026 Fantasy — Live Tracker</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #EEF2EE; font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; padding-bottom: 48px; }
+
+.hdr { background: linear-gradient(135deg, #14401A 0%, #2E7D32 100%); padding: 18px 16px 14px; text-align: center; border-bottom: 4px solid #FFD700; }
+.hdr-eyebrow { font-size: 10px; letter-spacing: 4px; color: #A5D6A7; text-transform: uppercase; }
+.hdr-title { font-size: 24px; font-weight: 900; color: #FFD700; letter-spacing: 2px; margin-top: 3px; }
+.hdr-sub { font-size: 11px; color: #C8E6C9; margin-top: 6px; }
+.hdr-updated { font-size: 10px; color: #81C784; margin-top: 5px; font-style: italic; }
+.hdr-live { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; background: #C62828; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 3px 12px; border-radius: 12px; }
+.hdr-live .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+.hdr-next { display: inline-block; margin-top: 8px; background: rgba(255,255,255,0.12); color: #E8F5E9; font-size: 11px; padding: 3px 12px; border-radius: 12px; }
+
+.tabs { display: flex; justify-content: center; gap: 0; background: #1B5E20; position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+.tab { flex: 1; max-width: 220px; text-align: center; padding: 12px 8px; font-size: 13px; font-weight: 800; letter-spacing: 1px; color: #A5D6A7; cursor: pointer; border: none; background: none; border-bottom: 3px solid transparent; }
+.tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 14px 12px 0; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.chip { border: 1px solid #C8D6C8; background: #fff; color: #37474F; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 14px; cursor: pointer; }
+.chip.on { background: #1B5E20; border-color: #1B5E20; color: #FFD700; }
+.livetoggle { display: none; margin-left: auto; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #C62828; cursor: pointer; user-select: none; }
+.livetoggle input { accent-color: #C62828; }
+
+.pcard { background: #fff; border-radius: 12px; border: 1px solid #E0E0E0; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+.pcard.top1 { border: 2px solid #FFD700; }
+.pcard.top2 { border: 2px solid #B0BEC5; }
+.pcard.top3 { border: 2px solid #BCAAA4; }
+.phead { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+.prank { font-size: 20px; font-weight: 900; width: 28px; text-align: center; flex-shrink: 0; }
+.pavatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.pinfo { flex: 1; min-width: 0; }
+.pname { font-size: 17px; font-weight: 800; color: #1B2A1B; line-height: 1.05; }
+.pmeta { font-size: 10.5px; color: #78909C; margin-top: 3px; }
+.pmeta .alive { color: #2E7D32; font-weight: 700; }
+.pbarwrap { height: 5px; background: #ECEFF1; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.pbar { height: 100%; background: linear-gradient(90deg, #2E7D32, #66BB6A); border-radius: 3px; }
+.pright { text-align: right; flex-shrink: 0; }
+.ppts { font-size: 28px; font-weight: 900; line-height: 1; color: #1B5E20; }
+.ppts .lively { color: #C62828; }
+.ppts-lbl { font-size: 9px; color: #9E9E9E; letter-spacing: 1px; }
+.precord { font-size: 10.5px; color: #607D8B; margin-top: 3px; }
+.caret { color: #B0BEC5; font-size: 11px; flex-shrink: 0; transition: transform 0.15s; }
+.pcard.open .caret { transform: rotate(90deg); }
+.teams { display: none; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; padding: 4px 14px 14px; border-top: 1px solid #F0F0F0; }
+.pcard.open .teams { display: grid; padding-top: 12px; }
+.tcard { position: relative; border: 1px solid #ECECEC; border-radius: 9px; padding: 9px 11px; background: #FAFCFA; }
+.tcard.elim { background: #F3F3F3; border-color: #E0E0E0; filter: grayscale(1); opacity: 0.62; }
+.trow1 { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.tname { font-size: 13px; font-weight: 700; color: #263238; }
+.tpts { font-size: 15px; font-weight: 900; }
+.tpts.pos { color: #2E7D32; }
+.tpts.zero { color: #B0BEC5; }
+.trow2 { display: flex; align-items: center; gap: 5px; margin-top: 7px; }
+.pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 9px; }
+.pill.w { background: #E8F5E9; color: #2E7D32; }
+.pill.d { background: #ECEFF1; color: #607D8B; }
+.pill.l { background: #FFEBEE; color: #C62828; }
+.tpr { font-size: 9px; color: #B0BEC5; margin-left: auto; }
+.deadtag { margin-left: auto; background: #C62828; color: #fff; font-size: 8.5px; font-weight: 900; letter-spacing: 1px; padding: 1px 6px; border-radius: 3px; }
+.tcard.elim .tpr { margin-left: 0; }
+
+.sect-title { font-size: 12px; font-weight: 900; letter-spacing: 2px; color: #1B5E20; margin: 18px 0 10px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.sect-title .livedot { width: 9px; height: 9px; border-radius: 50%; background: #C62828; animation: pulse 1.2s infinite; }
+.sect-title:first-child { margin-top: 4px; }
+
+.mcard { background: #fff; border-radius: 10px; border: 1px solid #E0E0E0; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.mcard.live { border: 2px solid #C62828; }
+.mtop { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #90A4AE; margin-bottom: 7px; }
+.mstage { font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #607D8B; }
+.mstatus { font-weight: 700; }
+.mstatus.live { color: #C62828; }
+.mstatus.ft { color: #2E7D32; }
+.mrow { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.mflag { font-size: 18px; width: 26px; text-align: center; flex-shrink: 0; }
+.mteam { font-size: 14px; font-weight: 700; color: #263238; flex: 1; min-width: 0; }
+.mteam.winner { font-weight: 900; }
+.mteam.loser { color: #90A4AE; }
+.mowners { font-size: 9px; color: #B0BEC5; flex-shrink: 0; margin-right: 4px; }
+.mscore { font-size: 17px; font-weight: 900; width: 34px; text-align: center; flex-shrink: 0; color: #263238; }
+.mpts { font-size: 10px; font-weight: 800; width: 32px; text-align: center; border-radius: 8px; padding: 2px 0; flex-shrink: 0; }
+.mpts.p2 { background: #E8F5E9; color: #2E7D32; }
+.mpts.p1 { background: #FFF8E1; color: #F57F17; }
+.mpts.p0 { background: #FAFAFA; color: #B0BEC5; }
+.mnote { font-size: 10px; color: #F57F17; font-weight: 700; margin-top: 5px; text-align: center; }
+.mdate { font-size: 11px; color: #607D8B; font-weight: 700; }
+
+.notice { background: #FFF3E0; border: 1px solid #FFE0B2; color: #E65100; font-size: 11px; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; display: none; }
+
+.footer { text-align: center; font-size: 10px; color: #9AA59A; padding: 22px 12px 0; max-width: 940px; margin: 0 auto; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-eyebrow">2026 FIFA World Cup Fantasy</div>
+  <div class="hdr-title">LIVE TRACKER</div>
+  <div class="hdr-sub">12 players &middot; 8 teams each &middot; Win = 2 &middot; Draw = 1 &middot; OT/pens loss = 1 &middot; Loss = 0</div>
+  <div class="hdr-updated" id="updated">Loading live scores&hellip;</div>
+  <div id="hdr-badge"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-lb" onclick="setTab('lb')">🏆 Leaderboard</button>
+  <button class="tab" id="tab-mx" onclick="setTab('mx')">⚽ Matches</button>
+</div>
+
+<div class="container">
+  <div class="notice" id="notice"></div>
+  <div id="view-lb">
+    <div class="filters">
+      <button class="chip on" data-room="all" onclick="setRoom('all')">All players</button>
+      <button class="chip" data-room="1" onclick="setRoom('1')">Room 1</button>
+      <button class="chip" data-room="2" onclick="setRoom('2')">Room 2</button>
+      <label class="livetoggle" id="livetoggle"><input type="checkbox" id="inclive" onchange="render()"> include live scores</label>
+    </div>
+    <div id="board"></div>
+  </div>
+  <div id="view-mx" style="display:none">
+    <div id="matches"></div>
+  </div>
+</div>
+
+<div class="footer">
+  Win = 2 pts &middot; Draw = 1 pt &middot; Overtime / penalty loss = 1 pt &middot; Loss = 0 pts<br>
+  Scores update automatically from live match data — no manual updates needed.<br>
+  Refreshes every minute during live games. Data: ESPN.
+</div>
+
+<script>
+// ============ LEAGUE SETUP ============
+const PLAYER_TEAMS = {
+  Brock:   ['England','Morocco','Japan','Australia','Qatar','Czechia','Bosnia & Herz.','Iraq'],
+  Atticus: ['Argentina','Germany','Senegal','Uruguay','Iran','Norway','DR Congo','New Zealand'],
+  Hunter:  ['Portugal','Netherlands','Austria','South Korea','Algeria','Sweden','Uzbekistan','Jordan'],
+  Lenny:   ['Spain','Belgium','Colombia','Egypt','Türkiye','South Africa','Ghana','Curaçao'],
+  Austin:  ['Brazil','Croatia','Switzerland','Ecuador','Tunisia','Scotland','Saudi Arabia','Cape Verde'],
+  Brandon: ['France','Mexico','United States','Canada','Ivory Coast','Panama','Paraguay','Haiti'],
+  Carlos:  ['France','Morocco','Croatia','Iran','Ecuador','Qatar','Panama','Cape Verde'],
+  Bogdan:  ['Spain','Colombia','Canada','Tunisia','Türkiye','Norway','Bosnia & Herz.','New Zealand'],
+  Jess:    ['Brazil','United States','Japan','Australia','South Korea','Saudi Arabia','Iraq','Paraguay'],
+  Stewie:  ['England','Netherlands','Senegal','Mexico','Algeria','Czechia','DR Congo','Ghana'],
+  Edwin:   ['Portugal','Germany','Switzerland','Egypt','Sweden','South Africa','Uzbekistan','Jordan'],
+  McCoy:   ['Argentina','Belgium','Uruguay','Austria','Ivory Coast','Scotland','Curaçao','Haiti']
+};
+const ROOMS = {Brock:1,Atticus:1,Hunter:1,Lenny:1,Austin:1,Brandon:1,Carlos:2,Bogdan:2,Jess:2,Stewie:2,Edwin:2,McCoy:2};
+const POWER_RANK = {France:1,Spain:2,Argentina:3,England:4,Portugal:5,Brazil:6,Netherlands:7,Morocco:8,Belgium:9,Germany:10,Croatia:11,Colombia:12,Senegal:13,Mexico:14,'United States':15,Uruguay:16,Japan:17,Switzerland:18,Iran:19,Austria:20,Ecuador:21,Australia:22,'South Korea':23,Egypt:24,Canada:25,'Ivory Coast':26,Qatar:27,Algeria:28,Sweden:29,Tunisia:30,Czechia:31,'Türkiye':32,Norway:33,Scotland:34,'DR Congo':35,'Bosnia & Herz.':36,Panama:37,'Saudi Arabia':38,'South Africa':39,Iraq:40,Uzbekistan:41,Paraguay:42,Ghana:43,Jordan:44,'Cape Verde':45,'Curaçao':46,Haiti:47,'New Zealand':48};
+const AVATAR_COLORS = ['#1B5E20','#0D47A1','#B71C1C','#E65100','#4A148C','#006064','#37474F','#F57F17','#1A237E','#004D40','#880E4F','#33691E'];
+const PLAYERS = Object.keys(PLAYER_TEAMS);
+
+const FLAGS = {England:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',Morocco:'🇲🇦',Japan:'🇯🇵',Australia:'🇦🇺',Qatar:'🇶🇦',Czechia:'🇨🇿','Bosnia & Herz.':'🇧🇦',Iraq:'🇮🇶',Argentina:'🇦🇷',Germany:'🇩🇪',Senegal:'🇸🇳',Uruguay:'🇺🇾',Iran:'🇮🇷',Norway:'🇳🇴','DR Congo':'🇨🇩','New Zealand':'🇳🇿',Portugal:'🇵🇹',Netherlands:'🇳🇱',Austria:'🇦🇹','South Korea':'🇰🇷',Algeria:'🇩🇿',Sweden:'🇸🇪',Uzbekistan:'🇺🇿',Jordan:'🇯🇴',Spain:'🇪🇸',Belgium:'🇧🇪',Colombia:'🇨🇴',Egypt:'🇪🇬','Türkiye':'🇹🇷','South Africa':'🇿🇦',Ghana:'🇬🇭','Curaçao':'🇨🇼',Brazil:'🇧🇷',Croatia:'🇭🇷',Switzerland:'🇨🇭',Ecuador:'🇪🇨',Tunisia:'🇹🇳',Scotland:'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Saudi Arabia':'🇸🇦','Cape Verde':'🇨🇻',France:'🇫🇷',Mexico:'🇲🇽','United States':'🇺🇸',Canada:'🇨🇦','Ivory Coast':'🇨🇮',Panama:'🇵🇦',Paraguay:'🇵🇾',Haiti:'🇭🇹'};
+
+// ESPN name -> league name (everything else matches exactly)
+const NAME_MAP = {'Bosnia-Herzegovina':'Bosnia & Herz.','Congo DR':'DR Congo','USA':'United States','South Korea':'South Korea','Korea Republic':'South Korea','Turkey':'Türkiye','Cabo Verde':'Cape Verde',"Côte d'Ivoire":'Ivory Coast','Czech Republic':'Czechia'};
+
+const TEAM_OWNERS = {};
+for (const [p, ts] of Object.entries(PLAYER_TEAMS)) for (const t of ts) (TEAM_OWNERS[t] = TEAM_OWNERS[t] || []).push(p);
+
+// ============ DATA ============
+const API_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=250';
+
+// Snapshot baked in at build time — used only if the live fetch fails.
+const FALLBACK_GAMES = [{"date":"2026-06-11T19:00Z","stage":"Group Stage","t1":"Mexico","t2":"South Africa","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Mexico","note":"","tbd":false},{"date":"2026-06-12T02:00Z","stage":"Group Stage","t1":"South Korea","t2":"Czechia","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"South Korea","note":"","tbd":false},{"date":"2026-06-12T19:00Z","stage":"Group Stage","t1":"Canada","t2":"Bosnia & Herz.","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-13T01:00Z","stage":"Group Stage","t1":"United States","t2":"Paraguay","s1":4,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":"United States","note":"","tbd":false},{"date":"2026-06-13T19:00Z","stage":"Group Stage","t1":"Qatar","t2":"Switzerland","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-13T22:00Z","stage":"Group Stage","t1":"Brazil","t2":"Morocco","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+25'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-14T01:00Z","stage":"Group Stage","t1":"Haiti","t2":"Scotland","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Scotland","note":"","tbd":false},{"date":"2026-06-14T04:00Z","stage":"Group Stage","t1":"Australia","t2":"Türkiye","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Australia","note":"","tbd":false},{"date":"2026-06-14T17:00Z","stage":"Group Stage","t1":"Germany","t2":"Curaçao","s1":7,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Germany","note":"","tbd":false},{"date":"2026-06-14T20:00Z","stage":"Group Stage","t1":"Netherlands","t2":"Japan","s1":2,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-14T23:00Z","stage":"Group Stage","t1":"Ivory Coast","t2":"Ecuador","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Ivory Coast","note":"","tbd":false},{"date":"2026-06-15T02:00Z","stage":"Group Stage","t1":"Sweden","t2":"Tunisia","s1":5,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Sweden","note":"","tbd":false},{"date":"2026-06-15T16:00Z","stage":"Group Stage","t1":"Spain","t2":"Cape Verde","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-15T19:00Z","stage":"Group Stage","t1":"Belgium","t2":"Egypt","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-15T22:00Z","stage":"Group Stage","t1":"Saudi Arabia","t2":"Uruguay","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-16T01:00Z","stage":"Group Stage","t1":"Iran","t2":"New Zealand","s1":2,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-16T19:00Z","stage":"Group Stage","t1":"France","t2":"Senegal","s1":3,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+10'","ot":false,"pens":false,"winner":"France","note":"","tbd":false},{"date":"2026-06-16T22:00Z","stage":"Group Stage","t1":"Iraq","t2":"Norway","s1":1,"s2":4,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Norway","note":"","tbd":false},{"date":"2026-06-17T01:00Z","stage":"Group Stage","t1":"Argentina","t2":"Algeria","s1":3,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Argentina","note":"","tbd":false},{"date":"2026-06-17T04:00Z","stage":"Group Stage","t1":"Austria","t2":"Jordan","s1":3,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+14'","ot":false,"pens":false,"winner":"Austria","note":"","tbd":false},{"date":"2026-06-17T17:00Z","stage":"Group Stage","t1":"Portugal","t2":"DR Congo","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-17T20:00Z","stage":"Group Stage","t1":"England","t2":"Croatia","s1":4,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"England","note":"","tbd":false},{"date":"2026-06-17T23:00Z","stage":"Group Stage","t1":"Ghana","t2":"Panama","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+11'","ot":false,"pens":false,"winner":"Ghana","note":"","tbd":false},{"date":"2026-06-18T02:00Z","stage":"Group Stage","t1":"Uzbekistan","t2":"Colombia","s1":1,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+11'","ot":false,"pens":false,"winner":"Colombia","note":"","tbd":false},{"date":"2026-06-18T16:00Z","stage":"Group Stage","t1":"Czechia","t2":"South Africa","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-18T19:00Z","stage":"Group Stage","t1":"Switzerland","t2":"Bosnia & Herz.","s1":4,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Switzerland","note":"","tbd":false},{"date":"2026-06-18T22:00Z","stage":"Group Stage","t1":"Canada","t2":"Qatar","s1":6,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+10'","ot":false,"pens":false,"winner":"Canada","note":"","tbd":false},{"date":"2026-06-19T01:00Z","stage":"Group Stage","t1":"Mexico","t2":"South Korea","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Mexico","note":"","tbd":false},{"date":"2026-06-19T19:00Z","stage":"Group Stage","t1":"United States","t2":"Australia","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"United States","note":"","tbd":false},{"date":"2026-06-19T22:00Z","stage":"Group Stage","t1":"Scotland","t2":"Morocco","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Morocco","note":"","tbd":false},{"date":"2026-06-20T00:30Z","stage":"Group Stage","t1":"Brazil","t2":"Haiti","s1":3,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":"Brazil","note":"","tbd":false},{"date":"2026-06-20T03:00Z","stage":"Group Stage","t1":"Türkiye","t2":"Paraguay","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":"Paraguay","note":"","tbd":false},{"date":"2026-06-20T17:00Z","stage":"Group Stage","t1":"Netherlands","t2":"Sweden","s1":5,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":"Netherlands","note":"","tbd":false},{"date":"2026-06-20T20:00Z","stage":"Group Stage","t1":"Germany","t2":"Ivory Coast","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Germany","note":"","tbd":false},{"date":"2026-06-21T00:00Z","stage":"Group Stage","t1":"Ecuador","t2":"Curaçao","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-21T04:00Z","stage":"Group Stage","t1":"Tunisia","t2":"Japan","s1":0,"s2":4,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Japan","note":"","tbd":false},{"date":"2026-06-21T16:00Z","stage":"Group Stage","t1":"Spain","t2":"Saudi Arabia","s1":4,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Spain","note":"","tbd":false},{"date":"2026-06-21T19:00Z","stage":"Group Stage","t1":"Belgium","t2":"Iran","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-21T22:00Z","stage":"Group Stage","t1":"Uruguay","t2":"Cape Verde","s1":2,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-22T01:00Z","stage":"Group Stage","t1":"New Zealand","t2":"Egypt","s1":1,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+10'","ot":false,"pens":false,"winner":"Egypt","note":"","tbd":false},{"date":"2026-06-22T17:00Z","stage":"Group Stage","t1":"Argentina","t2":"Austria","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Argentina","note":"","tbd":false},{"date":"2026-06-22T21:00Z","stage":"Group Stage","t1":"France","t2":"Iraq","s1":3,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+2'","ot":false,"pens":false,"winner":"France","note":"","tbd":false},{"date":"2026-06-23T00:00Z","stage":"Group Stage","t1":"Norway","t2":"Senegal","s1":3,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+10'","ot":false,"pens":false,"winner":"Norway","note":"","tbd":false},{"date":"2026-06-23T03:00Z","stage":"Group Stage","t1":"Jordan","t2":"Algeria","s1":1,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Algeria","note":"","tbd":false},{"date":"2026-06-23T17:00Z","stage":"Group Stage","t1":"Portugal","t2":"Uzbekistan","s1":5,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Portugal","note":"","tbd":false},{"date":"2026-06-23T20:00Z","stage":"Group Stage","t1":"England","t2":"Ghana","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-23T23:00Z","stage":"Group Stage","t1":"Panama","t2":"Croatia","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":"Croatia","note":"","tbd":false},{"date":"2026-06-24T02:00Z","stage":"Group Stage","t1":"Colombia","t2":"DR Congo","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Colombia","note":"","tbd":false},{"date":"2026-06-24T19:00Z","stage":"Group Stage","t1":"Bosnia & Herz.","t2":"Qatar","s1":3,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Bosnia & Herz.","note":"","tbd":false},{"date":"2026-06-24T19:00Z","stage":"Group Stage","t1":"Switzerland","t2":"Canada","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Switzerland","note":"","tbd":false},{"date":"2026-06-24T22:00Z","stage":"Group Stage","t1":"Morocco","t2":"Haiti","s1":4,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":"Morocco","note":"","tbd":false},{"date":"2026-06-24T22:00Z","stage":"Group Stage","t1":"Scotland","t2":"Brazil","s1":0,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Brazil","note":"","tbd":false},{"date":"2026-06-25T01:00Z","stage":"Group Stage","t1":"Czechia","t2":"Mexico","s1":0,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Mexico","note":"","tbd":false},{"date":"2026-06-25T01:00Z","stage":"Group Stage","t1":"South Africa","t2":"South Korea","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"South Africa","note":"","tbd":false},{"date":"2026-06-25T20:00Z","stage":"Group Stage","t1":"Curaçao","t2":"Ivory Coast","s1":0,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Ivory Coast","note":"","tbd":false},{"date":"2026-06-25T20:00Z","stage":"Group Stage","t1":"Ecuador","t2":"Germany","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Ecuador","note":"","tbd":false},{"date":"2026-06-25T23:00Z","stage":"Group Stage","t1":"Japan","t2":"Sweden","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-25T23:00Z","stage":"Group Stage","t1":"Tunisia","t2":"Netherlands","s1":1,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":"Netherlands","note":"","tbd":false},{"date":"2026-06-26T02:00Z","stage":"Group Stage","t1":"Paraguay","t2":"Australia","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-26T02:00Z","stage":"Group Stage","t1":"Türkiye","t2":"United States","s1":3,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":"Türkiye","note":"","tbd":false},{"date":"2026-06-26T19:00Z","stage":"Group Stage","t1":"Norway","t2":"France","s1":1,"s2":4,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":"France","note":"","tbd":false},{"date":"2026-06-26T19:00Z","stage":"Group Stage","t1":"Senegal","t2":"Iraq","s1":5,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Senegal","note":"","tbd":false},{"date":"2026-06-27T00:00Z","stage":"Group Stage","t1":"Cape Verde","t2":"Saudi Arabia","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+5'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-27T00:00Z","stage":"Group Stage","t1":"Uruguay","t2":"Spain","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Spain","note":"","tbd":false},{"date":"2026-06-27T03:00Z","stage":"Group Stage","t1":"Egypt","t2":"Iran","s1":1,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-27T03:00Z","stage":"Group Stage","t1":"New Zealand","t2":"Belgium","s1":1,"s2":5,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Belgium","note":"","tbd":false},{"date":"2026-06-27T21:00Z","stage":"Group Stage","t1":"Croatia","t2":"Ghana","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Croatia","note":"","tbd":false},{"date":"2026-06-27T21:00Z","stage":"Group Stage","t1":"Panama","t2":"England","s1":0,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"England","note":"","tbd":false},{"date":"2026-06-27T23:30Z","stage":"Group Stage","t1":"Colombia","t2":"Portugal","s1":0,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-27T23:30Z","stage":"Group Stage","t1":"DR Congo","t2":"Uzbekistan","s1":3,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"DR Congo","note":"","tbd":false},{"date":"2026-06-28T02:00Z","stage":"Group Stage","t1":"Algeria","t2":"Austria","s1":3,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-06-28T02:00Z","stage":"Group Stage","t1":"Jordan","t2":"Argentina","s1":1,"s2":3,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Argentina","note":"","tbd":false},{"date":"2026-06-28T19:00Z","stage":"Round of 32","t1":"South Africa","t2":"Canada","s1":0,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Canada","note":"","tbd":false},{"date":"2026-06-29T17:00Z","stage":"Round of 32","t1":"Brazil","t2":"Japan","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+11'","ot":false,"pens":false,"winner":"Brazil","note":"","tbd":false},{"date":"2026-06-29T20:30Z","stage":"Round of 32","t1":"Germany","t2":"Paraguay","s1":1,"s2":1,"p1":3,"p2":4,"state":"post","detail":"FT-Pens","clock":"120'","ot":true,"pens":true,"winner":"Paraguay","note":"Paraguay advance 4-3 on penalties","tbd":false},{"date":"2026-06-30T01:00Z","stage":"Round of 32","t1":"Netherlands","t2":"Morocco","s1":1,"s2":1,"p1":2,"p2":3,"state":"post","detail":"FT-Pens","clock":"120'","ot":true,"pens":true,"winner":"Morocco","note":"Morocco advance 3-2 on penalties","tbd":false},{"date":"2026-06-30T17:00Z","stage":"Round of 32","t1":"Ivory Coast","t2":"Norway","s1":1,"s2":2,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Norway","note":"","tbd":false},{"date":"2026-06-30T21:00Z","stage":"Round of 32","t1":"France","t2":"Sweden","s1":3,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+4'","ot":false,"pens":false,"winner":"France","note":"","tbd":false},{"date":"2026-07-01T02:00Z","stage":"Round of 32","t1":"Mexico","t2":"Ecuador","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+9'","ot":false,"pens":false,"winner":"Mexico","note":"","tbd":false},{"date":"2026-07-01T16:00Z","stage":"Round of 32","t1":"England","t2":"DR Congo","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"England","note":"","tbd":false},{"date":"2026-07-01T20:00Z","stage":"Round of 32","t1":"Belgium","t2":"Senegal","s1":3,"s2":2,"p1":null,"p2":null,"state":"post","detail":"AET","clock":"120'+12'","ot":true,"pens":false,"winner":"Belgium","note":"","tbd":false},{"date":"2026-07-02T00:00Z","stage":"Round of 32","t1":"United States","t2":"Bosnia & Herz.","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+10'","ot":false,"pens":false,"winner":"United States","note":"","tbd":false},{"date":"2026-07-02T19:00Z","stage":"Round of 32","t1":"Spain","t2":"Austria","s1":3,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+6'","ot":false,"pens":false,"winner":"Spain","note":"","tbd":false},{"date":"2026-07-02T23:00Z","stage":"Round of 32","t1":"Portugal","t2":"Croatia","s1":2,"s2":1,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+19'","ot":false,"pens":false,"winner":"Portugal","note":"","tbd":false},{"date":"2026-07-03T03:00Z","stage":"Round of 32","t1":"Switzerland","t2":"Algeria","s1":2,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+7'","ot":false,"pens":false,"winner":"Switzerland","note":"","tbd":false},{"date":"2026-07-03T18:00Z","stage":"Round of 32","t1":"Australia","t2":"Egypt","s1":1,"s2":1,"p1":2,"p2":4,"state":"post","detail":"FT-Pens","clock":"120'","ot":true,"pens":true,"winner":"Egypt","note":"Egypt advance 4-2 on penalties","tbd":false},{"date":"2026-07-03T22:00Z","stage":"Round of 32","t1":"Argentina","t2":"Cape Verde","s1":3,"s2":2,"p1":null,"p2":null,"state":"post","detail":"AET","clock":"120'+3'","ot":true,"pens":false,"winner":"Argentina","note":"","tbd":false},{"date":"2026-07-04T01:30Z","stage":"Round of 32","t1":"Colombia","t2":"Ghana","s1":1,"s2":0,"p1":null,"p2":null,"state":"post","detail":"FT","clock":"90'+8'","ot":false,"pens":false,"winner":"Colombia","note":"","tbd":false},{"date":"2026-07-04T17:00Z","stage":"Round of 16","t1":"Canada","t2":"Morocco","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sat, July 4th at 1:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-04T21:00Z","stage":"Round of 16","t1":"Paraguay","t2":"France","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sat, July 4th at 5:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-05T20:00Z","stage":"Round of 16","t1":"Brazil","t2":"Norway","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sun, July 5th at 4:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-06T00:00Z","stage":"Round of 16","t1":"Mexico","t2":"England","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sun, July 5th at 8:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-06T19:00Z","stage":"Round of 16","t1":"Portugal","t2":"Spain","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Mon, July 6th at 3:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-07T00:00Z","stage":"Round of 16","t1":"United States","t2":"Belgium","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Mon, July 6th at 8:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-07T16:00Z","stage":"Round of 16","t1":"Argentina","t2":"Egypt","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Tue, July 7th at 12:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-07T20:00Z","stage":"Round of 16","t1":"Switzerland","t2":"Colombia","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Tue, July 7th at 4:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":false},{"date":"2026-07-09T20:00Z","stage":"Quarterfinals","t1":"Round of 16 1 Winner","t2":"Round of 16 2 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Thu, July 9th at 4:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-10T19:00Z","stage":"Quarterfinals","t1":"Round of 16 5 Winner","t2":"Round of 16 6 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Fri, July 10th at 3:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-11T21:00Z","stage":"Quarterfinals","t1":"Round of 16 3 Winner","t2":"Round of 16 4 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sat, July 11th at 5:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-12T01:00Z","stage":"Quarterfinals","t1":"Round of 16 7 Winner","t2":"Round of 16 8 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sat, July 11th at 9:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-14T19:00Z","stage":"Semifinals","t1":"Quarterfinal 1 Winner","t2":"Quarterfinal 2 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Tue, July 14th at 3:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-15T19:00Z","stage":"Semifinals","t1":"Quarterfinal 3 Winner","t2":"Quarterfinal 4 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Wed, July 15th at 3:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-18T21:00Z","stage":"Third Place","t1":"Semifinal 1 Loser","t2":"Semifinal 2 Loser","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sat, July 18th at 5:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true},{"date":"2026-07-19T19:00Z","stage":"Final","t1":"Semifinal 1 Winner","t2":"Semifinal 2 Winner","s1":0,"s2":0,"p1":null,"p2":null,"state":"pre","detail":"Sun, July 19th at 3:00 PM EDT","clock":"0'","ot":false,"pens":false,"winner":null,"note":"","tbd":true}];
+
+let GAMES = FALLBACK_GAMES;
+let usingFallback = true;
+let lastFetched = null;
+
+function leagueName(espnName) { return NAME_MAP[espnName] || espnName; }
+
+function stageOf(iso) {
+  // Stage boundaries follow US Eastern dates (UTC-4) — late ET kickoffs roll past midnight UTC
+  const d = new Date(new Date(iso).getTime() - 4 * 3600 * 1000).toISOString().slice(0, 10);
+  if (d < '2026-06-28') return 'Group Stage';
+  if (d < '2026-07-04') return 'Round of 32';
+  if (d < '2026-07-08') return 'Round of 16';
+  if (d < '2026-07-13') return 'Quarterfinals';
+  if (d < '2026-07-16') return 'Semifinals';
+  if (d < '2026-07-19') return 'Third Place';
+  return 'Final';
+}
+
+function normalizeEvents(events) {
+  const games = [];
+  for (const e of events) {
+    const comp = (e.competitions || [])[0];
+    if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
+    const home = comp.competitors.find(c => c.homeAway === 'home') || comp.competitors[0];
+    const away = comp.competitors.find(c => c.homeAway === 'away') || comp.competitors[1];
+    const st = comp.status?.type || {};
+    const t1 = leagueName(home.team?.displayName || '');
+    const t2 = leagueName(away.team?.displayName || '');
+    const pens = st.name === 'STATUS_FINAL_PEN';
+    const aet = st.name === 'STATUS_FINAL_AET';
+    let winner = null;
+    if (home.winner) winner = t1; else if (away.winner) winner = t2;
+    const note = (comp.notes || []).map(n => n.headline || n.text).filter(Boolean)[0] || '';
+    games.push({
+      date: e.date, stage: stageOf(e.date),
+      t1, t2,
+      s1: parseInt(home.score, 10) || 0, s2: parseInt(away.score, 10) || 0,
+      p1: home.shootoutScore ?? null, p2: away.shootoutScore ?? null,
+      state: st.state || 'pre',          // pre | in | post
+      detail: st.detail || '',            // FT, AET, FT-Pens, 45'+2', etc.
+      clock: comp.status?.displayClock || '',
+      ot: pens || aet, pens, winner, note,
+      tbd: !(t1 in FLAGS) || !(t2 in FLAGS)
+    });
+  }
+  games.sort((a, b) => a.date.localeCompare(b.date));
+  return games;
+}
+
+// Points a single game gives each team. For live games (ifEndedNow) score decides.
+function gamePoints(g, ifEndedNow) {
+  const done = g.state === 'post';
+  if (!done && !ifEndedNow) return null;
+  let w = g.winner;
+  if (!done) w = g.s1 > g.s2 ? g.t1 : g.s2 > g.s1 ? g.t2 : null;
+  if (!w) return {[g.t1]: 1, [g.t2]: 1, r1: 'd', r2: 'd'};
+  const losePts = g.ot ? 1 : 0;
+  return w === g.t1
+    ? {[g.t1]: 2, [g.t2]: losePts, r1: 'w', r2: g.ot ? 'd' : 'l'}
+    : {[g.t1]: losePts, [g.t2]: 2, r1: g.ot ? 'd' : 'l', r2: 'w'};
+}
+
+function buildStats(includeLive) {
+  const teams = {};
+  const T = t => teams[t] = teams[t] || {pts: 0, w: 0, d: 0, l: 0, gp: 0, livePts: 0};
+  for (const g of GAMES) {
+    if (g.tbd) continue;
+    const isLive = g.state === 'in';
+    const gp = gamePoints(g, isLive && includeLive);
+    if (!gp) continue;
+    const a = T(g.t1), b = T(g.t2);
+    a.pts += gp[g.t1]; b.pts += gp[g.t2];
+    a[gp.r1]++; b[gp.r2]++; a.gp++; b.gp++;
+    if (isLive) { a.livePts += gp[g.t1]; b.livePts += gp[g.t2]; }
+  }
+  // Elimination: once knockout games exist, alive = appears in a knockout fixture and hasn't lost one
+  const koGames = GAMES.filter(g => g.stage !== 'Group Stage');
+  const eliminated = new Set();
+  if (koGames.length) {
+    const inKO = new Set();
+    for (const g of koGames) if (!g.tbd) { inKO.add(g.t1); inKO.add(g.t2); }
+    for (const t of Object.keys(FLAGS)) if (!inKO.has(t)) eliminated.add(t);
+    for (const g of koGames) {
+      if (g.state !== 'post' || !g.winner || g.tbd) continue;
+      eliminated.add(g.winner === g.t1 ? g.t2 : g.t1);
+    }
+  }
+  return {teams, eliminated};
+}
+
+// ============ RENDER: LEADERBOARD ============
+let roomFilter = localStorage.getItem('wc_room') || 'all';
+let expanded = new Set(JSON.parse(localStorage.getItem('wc_expanded') || '[]'));
+
+function setRoom(r) {
+  roomFilter = r;
+  localStorage.setItem('wc_room', r);
+  document.querySelectorAll('.chip[data-room]').forEach(c => c.classList.toggle('on', c.dataset.room === r));
+  render();
+}
+
+function toggleExpand(p) {
+  if (expanded.has(p)) expanded.delete(p); else expanded.add(p);
+  localStorage.setItem('wc_expanded', JSON.stringify([...expanded]));
+  document.getElementById('card-' + p)?.classList.toggle('open', expanded.has(p));
+}
+
+function renderBoard() {
+  const anyLive = GAMES.some(g => g.state === 'in');
+  document.getElementById('livetoggle').style.display = anyLive ? 'inline-flex' : 'none';
+  const includeLive = anyLive && document.getElementById('inclive').checked;
+  const {teams, eliminated} = buildStats(includeLive);
+
+  const pData = {};
+  for (const [p, ts] of Object.entries(PLAYER_TEAMS)) {
+    let pts = 0, w = 0, d = 0, l = 0, alive = 0, livePts = 0;
+    ts.forEach(t => {
+      const s = teams[t];
+      if (s) { pts += s.pts; w += s.w; d += s.d; l += s.l; livePts += s.livePts; }
+      if (!eliminated.has(t)) alive++;
+    });
+    pData[p] = {pts, w, d, l, alive, livePts};
+  }
+  const shown = PLAYERS.filter(p => roomFilter === 'all' || String(ROOMS[p]) === roomFilter);
+  const sorted = shown.sort((a, b) => pData[b].pts - pData[a].pts || pData[b].alive - pData[a].alive || a.localeCompare(b));
+  const maxPts = Math.max(1, ...sorted.map(p => pData[p].pts));
+  const medal = ['#D4AF37', '#90A4AE', '#A1887F'];
+
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  sorted.forEach((player, idx) => {
+    const d = pData[player];
+    const rank = idx + 1;
+    const avatarBg = AVATAR_COLORS[PLAYERS.indexOf(player) % AVATAR_COLORS.length];
+    const teamCells = [...PLAYER_TEAMS[player]]
+      .sort((a, b) => {
+        const da = eliminated.has(a) ? 1 : 0, db = eliminated.has(b) ? 1 : 0;
+        if (da !== db) return da - db;
+        return (teams[b]?.pts || 0) - (teams[a]?.pts || 0);
+      })
+      .map(t => {
+        const s = teams[t] || {w: 0, d: 0, l: 0, pts: 0};
+        const dead = eliminated.has(t);
+        return `<div class="tcard${dead ? ' elim' : ''}">
+          <div class="trow1"><span class="tname">${FLAGS[t] || ''} ${t}</span>
+            <span class="tpts ${s.pts > 0 ? 'pos' : 'zero'}">${s.pts > 0 ? '+' + s.pts : '0'}</span></div>
+          <div class="trow2">
+            <span class="pill w">${s.w}W</span><span class="pill d">${s.d}D</span><span class="pill l">${s.l}L</span>
+            ${dead ? '<span class="deadtag">DEAD</span>' : ''}
+            <span class="tpr">#${POWER_RANK[t] || '?'}</span>
+          </div></div>`;
+      }).join('');
+
+    const card = document.createElement('div');
+    card.className = `pcard ${rank <= 3 && roomFilter === 'all' ? 'top' + rank : ''} ${expanded.has(player) ? 'open' : ''}`;
+    card.id = 'card-' + player;
+    card.innerHTML = `
+      <div class="phead" onclick="toggleExpand('${player}')">
+        <span class="prank" style="color:${medal[idx] || '#9E9E9E'}">${rank}</span>
+        <div class="pavatar" style="background:${avatarBg}">${player.slice(0, 2).toUpperCase()}</div>
+        <div class="pinfo">
+          <div class="pname">${player}</div>
+          <div class="pmeta">Room ${ROOMS[player]} · <span class="alive">${d.alive}/8 alive</span></div>
+          <div class="pbarwrap"><div class="pbar" style="width:${Math.round(d.pts / maxPts * 100)}%"></div></div>
+        </div>
+        <div class="pright">
+          <div class="ppts">${d.pts}${includeLive && d.livePts ? `<span class="lively">*</span>` : ''}</div>
+          <div class="ppts-lbl">PTS</div>
+          <div class="precord">${d.w}W-${d.d}D-${d.l}L</div>
+        </div>
+        <span class="caret">▶</span>
+      </div>
+      <div class="teams">${teamCells}</div>`;
+    board.appendChild(card);
+  });
+}
+
+// ============ RENDER: MATCHES ============
+const STAGE_ORDER = ['Final', 'Third Place', 'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32', 'Group Stage'];
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'});
+}
+
+function ownersOf(t) { return (TEAM_OWNERS[t] || []).join(' · '); }
+
+function matchCard(g) {
+  const live = g.state === 'in';
+  const post = g.state === 'post';
+  const gp = post ? gamePoints(g, false) : null;
+  const scoreTxt = t => {
+    if (g.state === 'pre') return '–';
+    const s = t === 1 ? g.s1 : g.s2;
+    const p = t === 1 ? g.p1 : g.p2;
+    return g.pens && p != null ? `${s} <span style="font-size:11px;color:#F57F17">(${p})</span>` : s;
+  };
+  const cls = t => !post || !g.winner ? '' : (g.winner === t ? 'winner' : 'loser');
+  const ptsBadge = t => {
+    if (!gp || g.tbd) return '';
+    const p = gp[t];
+    return `<span class="mpts p${p}">+${p}</span>`;
+  };
+  const status = live
+    ? `<span class="mstatus live">● LIVE ${g.clock || g.detail}</span>`
+    : post
+      ? `<span class="mstatus ft">${g.pens ? 'PENS' : g.detail === 'AET' ? 'AET' : 'FT'}</span>`
+      : `<span class="mdate">${fmtTime(g.date)}</span>`;
+  const row = (t, s) => `
+    <div class="mrow">
+      <span class="mflag">${FLAGS[t] || '⚽'}</span>
+      <span class="mteam ${cls(t)}">${t}</span>
+      <span class="mowners">${g.tbd ? '' : ownersOf(t)}</span>
+      ${ptsBadge(t)}
+      <span class="mscore">${s}</span>
+    </div>`;
+  return `<div class="mcard${live ? ' live' : ''}">
+    <div class="mtop"><span class="mstage">${g.stage}</span>${status}</div>
+    ${row(g.t1, scoreTxt(1))}
+    ${row(g.t2, scoreTxt(2))}
+    ${g.note ? `<div class="mnote">${g.note}</div>` : ''}
+  </div>`;
+}
+
+function renderMatches() {
+  const el = document.getElementById('matches');
+  const live = GAMES.filter(g => g.state === 'in');
+  const upcoming = GAMES.filter(g => g.state === 'pre');
+  const done = GAMES.filter(g => g.state === 'post').reverse();
+
+  let html = '';
+  if (live.length) {
+    html += `<div class="sect-title"><span class="livedot"></span>Live now</div>` + live.map(matchCard).join('');
+  }
+  if (upcoming.length) {
+    html += `<div class="sect-title">Up next</div>` + upcoming.slice(0, 10).map(matchCard).join('');
+  }
+  for (const stage of STAGE_ORDER) {
+    const games = done.filter(g => g.stage === stage);
+    if (!games.length) continue;
+    html += `<div class="sect-title">${stage} — results</div>` + games.map(matchCard).join('');
+  }
+  el.innerHTML = html || '<div style="text-align:center;color:#9E9E9E;padding:30px">No matches found</div>';
+}
+
+// ============ TABS / HEADER ============
+function setTab(t) {
+  document.getElementById('tab-lb').classList.toggle('active', t === 'lb');
+  document.getElementById('tab-mx').classList.toggle('active', t === 'mx');
+  document.getElementById('view-lb').style.display = t === 'lb' ? '' : 'none';
+  document.getElementById('view-mx').style.display = t === 'mx' ? '' : 'none';
+  localStorage.setItem('wc_tab', t);
+}
+
+function renderHeader() {
+  const live = GAMES.filter(g => g.state === 'in');
+  const badge = document.getElementById('hdr-badge');
+  if (live.length) {
+    badge.innerHTML = `<span class="hdr-live"><span class="dot"></span>${live.length} GAME${live.length > 1 ? 'S' : ''} LIVE</span>`;
+  } else {
+    const next = GAMES.find(g => g.state === 'pre' && !g.tbd);
+    badge.innerHTML = next
+      ? `<span class="hdr-next">Next: ${FLAGS[next.t1] || ''} ${next.t1} vs ${next.t2} ${FLAGS[next.t2] || ''} · ${fmtTime(next.date)}</span>`
+      : '';
+  }
+  const upd = document.getElementById('updated');
+  if (usingFallback) {
+    upd.textContent = 'Showing last saved scores — live update unavailable';
+  } else {
+    upd.textContent = 'Live · updated ' + lastFetched.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+  }
+  document.getElementById('notice').style.display = usingFallback && lastFetched ? 'block' : 'none';
+  document.getElementById('notice').textContent = 'Could not reach the live score feed — showing the last saved scores. Will keep retrying.';
+}
+
+function render() { renderHeader(); renderBoard(); renderMatches(); }
+
+// ============ FETCH LOOP ============
+async function refresh() {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const games = normalizeEvents(data.events || []);
+    if (games.length) { GAMES = games; usingFallback = false; }
+    lastFetched = new Date();
+  } catch (err) {
+    lastFetched = lastFetched || new Date();
+    console.warn('score fetch failed', err);
+  }
+  render();
+  scheduleNext();
+}
+
+let timer = null;
+function scheduleNext() {
+  clearTimeout(timer);
+  const anyLive = GAMES.some(g => g.state === 'in');
+  const soon = GAMES.some(g => g.state === 'pre' && new Date(g.date) - Date.now() < 30 * 60 * 1000);
+  const ms = anyLive ? 60 * 1000 : soon ? 3 * 60 * 1000 : 15 * 60 * 1000;
+  timer = setTimeout(refresh, ms);
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+
+setTab(localStorage.getItem('wc_tab') || 'lb');
+if (roomFilter !== 'all') setRoom(roomFilter);
+render();
+refresh();
+</script>
+</body>
+</html>
