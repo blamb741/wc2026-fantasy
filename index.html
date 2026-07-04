@@ -118,9 +118,6 @@ body { background: #EEF2EE; font-family: Arial, Helvetica, sans-serif; color: #1
   <div class="notice" id="notice"></div>
   <div id="view-lb">
     <div class="filters">
-      <button class="chip on" data-room="all" onclick="setRoom('all')">All players</button>
-      <button class="chip" data-room="1" onclick="setRoom('1')">Room 1</button>
-      <button class="chip" data-room="2" onclick="setRoom('2')">Room 2</button>
       <label class="livetoggle" id="livetoggle"><input type="checkbox" id="inclive" onchange="render()"> include live scores</label>
     </div>
     <div id="board"></div>
@@ -152,7 +149,6 @@ const PLAYER_TEAMS = {
   Edwin:   ['Portugal','Germany','Switzerland','Egypt','Sweden','South Africa','Uzbekistan','Jordan'],
   McCoy:   ['Argentina','Belgium','Uruguay','Austria','Ivory Coast','Scotland','Curaçao','Haiti']
 };
-const ROOMS = {Brock:1,Atticus:1,Hunter:1,Lenny:1,Austin:1,Brandon:1,Carlos:2,Bogdan:2,Jess:2,Stewie:2,Edwin:2,McCoy:2};
 const POWER_RANK = {France:1,Spain:2,Argentina:3,England:4,Portugal:5,Brazil:6,Netherlands:7,Morocco:8,Belgium:9,Germany:10,Croatia:11,Colombia:12,Senegal:13,Mexico:14,'United States':15,Uruguay:16,Japan:17,Switzerland:18,Iran:19,Austria:20,Ecuador:21,Australia:22,'South Korea':23,Egypt:24,Canada:25,'Ivory Coast':26,Qatar:27,Algeria:28,Sweden:29,Tunisia:30,Czechia:31,'Türkiye':32,Norway:33,Scotland:34,'DR Congo':35,'Bosnia & Herz.':36,Panama:37,'Saudi Arabia':38,'South Africa':39,Iraq:40,Uzbekistan:41,Paraguay:42,Ghana:43,Jordan:44,'Cape Verde':45,'Curaçao':46,Haiti:47,'New Zealand':48};
 const AVATAR_COLORS = ['#1B5E20','#0D47A1','#B71C1C','#E65100','#4A148C','#006064','#37474F','#F57F17','#1A237E','#004D40','#880E4F','#33691E'];
 const PLAYERS = Object.keys(PLAYER_TEAMS);
@@ -262,15 +258,7 @@ function buildStats(includeLive) {
 }
 
 // ============ RENDER: LEADERBOARD ============
-let roomFilter = localStorage.getItem('wc_room') || 'all';
 let expanded = new Set(JSON.parse(localStorage.getItem('wc_expanded') || '[]'));
-
-function setRoom(r) {
-  roomFilter = r;
-  localStorage.setItem('wc_room', r);
-  document.querySelectorAll('.chip[data-room]').forEach(c => c.classList.toggle('on', c.dataset.room === r));
-  render();
-}
 
 function toggleExpand(p) {
   if (expanded.has(p)) expanded.delete(p); else expanded.add(p);
@@ -294,8 +282,7 @@ function renderBoard() {
     });
     pData[p] = {pts, w, d, l, alive, livePts};
   }
-  const shown = PLAYERS.filter(p => roomFilter === 'all' || String(ROOMS[p]) === roomFilter);
-  const sorted = shown.sort((a, b) => pData[b].pts - pData[a].pts || pData[b].alive - pData[a].alive || a.localeCompare(b));
+  const sorted = [...PLAYERS].sort((a, b) => pData[b].pts - pData[a].pts || pData[b].alive - pData[a].alive || a.localeCompare(b));
   const maxPts = Math.max(1, ...sorted.map(p => pData[p].pts));
   const medal = ['#D4AF37', '#90A4AE', '#A1887F'];
 
@@ -325,7 +312,7 @@ function renderBoard() {
       }).join('');
 
     const card = document.createElement('div');
-    card.className = `pcard ${rank <= 3 && roomFilter === 'all' ? 'top' + rank : ''} ${expanded.has(player) ? 'open' : ''}`;
+    card.className = `pcard ${rank <= 3 ? 'top' + rank : ''} ${expanded.has(player) ? 'open' : ''}`;
     card.id = 'card-' + player;
     card.innerHTML = `
       <div class="phead" onclick="toggleExpand('${player}')">
@@ -333,7 +320,7 @@ function renderBoard() {
         <div class="pavatar" style="background:${avatarBg}">${player.slice(0, 2).toUpperCase()}</div>
         <div class="pinfo">
           <div class="pname">${player}</div>
-          <div class="pmeta">Room ${ROOMS[player]} · <span class="alive">${d.alive}/8 alive</span></div>
+          <div class="pmeta"><span class="alive">${d.alive}/8 alive</span></div>
           <div class="pbarwrap"><div class="pbar" style="width:${Math.round(d.pts / maxPts * 100)}%"></div></div>
         </div>
         <div class="pright">
@@ -476,7 +463,6 @@ function scheduleNext() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 
 setTab(localStorage.getItem('wc_tab') || 'lb');
-if (roomFilter !== 'all') setRoom(roomFilter);
 render();
 refresh();
 </script>

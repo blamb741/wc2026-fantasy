@@ -1,7 +1,7 @@
 # WC2026 Fantasy — Live Tracker
 
 Live leaderboard and match tracker for our 2026 World Cup Fantasy League
-(12 players, 2 rooms, 8 teams each).
+(12 players, 8 teams each).
 
 The page fetches live scores from ESPN's public scoreboard API directly in the
 browser, so it updates itself — no manual score entry, no scheduled jobs.
